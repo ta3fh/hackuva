@@ -1,4 +1,5 @@
 import rtmidi_python as rtmidi
+from time import sleep
 
 midi_out = rtmidi.MidiOut()
 midi_out.open_port(0)
