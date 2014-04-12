@@ -123,6 +123,16 @@ class Baton:
         return True
 
 
+    def getFingerValue(self):
+        history = self.history
+        total = 0
+        for h in history:
+            total += len(h.fingers)
+        if len(history) is not 0:
+            return float(total)/float(len(history))
+        else:
+            return 0
+
     def getXValue(self):
         history = self.history
         total = 0
@@ -192,13 +202,16 @@ class Player:
         batons = self.batons
         messages = []
         for baton in batons:
+            print baton.getFingerValue()
+            if baton.getFingerValue() < 1:
+                continue
             if len(baton.history) is not 0:
                 messages = baton.generateMessages()
         notesNow = []
         for message in messages:
             if message[0] != constants.noteon:
-                if message[0] == constants.controller:
-                    print "Setting controller to %d." % message[1]
+                #if message[0] == constants.controller:
+                #    print "Setting controller to %d." % message[1]
                 self.midiOut.send_message(message) #send message if not a note
             else:
                 notesNow.append(message[1])
