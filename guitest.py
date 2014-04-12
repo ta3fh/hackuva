@@ -1,5 +1,6 @@
 import wx, wx.html
 import sys
+import rtmidi_python as rtmidi
 
 aboutText = """
 <h1>Leap Music</h1>
@@ -60,21 +61,32 @@ class AppFrame(wx.Frame):
         panel = wx.Panel(self)
         box = wx.BoxSizer(wx.VERTICAL)
 
-        m_text = wx.StaticText(panel, wx.ID_ANY, "Hello World!")
-        m_text.SetFont(wx.Font(14, wx.SWISS, wx.NORMAL, wx.BOLD))
-        m_text.SetSize(m_text.GetBestSize())
-        box.Add(m_text, 0, wx.ALL, 10)
+        # m_text = wx.StaticText(panel, wx.ID_ANY, "Hello World!")
+        # m_text.SetFont(wx.Font(14, wx.SWISS, wx.NORMAL, wx.BOLD))
+        # m_text.SetSize(m_text.GetBestSize())
+        # box.Add(m_text, 0, wx.ALL, 10)
 
-        m_close = wx.Button(panel, wx.ID_CLOSE, "Close")
-        m_close.Bind(wx.EVT_BUTTON, self.OnClose)
-        box.Add(m_close, 0, wx.ALL, 10)
+        # m_close = wx.Button(panel, wx.ID_CLOSE, "Close")
+        # m_close.Bind(wx.EVT_BUTTON, self.OnClose)
+        # box.Add(m_close, 0, wx.ALL, 10)
 
-
-        midi_combo = wx.ComboBox(panel, wx.ID_ANY, choices="Wow Such Drop Down Many Choices".split())
+        header = wx.BoxSizer(wx.HORIZONTAL)
+        ports = []
+        for port_name in rtmidi.MidiOut().ports:
+    		ports.append(port_name)
+        midi_combo = wx.ComboBox(panel, wx.ID_ANY, choices=ports)
+        if len(ports) > 0:
+        	evt = wx.CommandEvent(wx.EVT_COMBOBOX.typeId, winid=wx.ID_ANY)
+        	evt.SetInt(len(ports)-1)
+        	midi_combo.SetValue(ports[-1])
+        	wx.PostEvent(midi_combo,evt)
         midi_combo.SetEditable(False)
         midi_combo.Bind(wx.EVT_COMBOBOX, self.OnMidiCombo)
-        lol = self.WithHorizontalLabel(panel, midi_combo, "MIDI Out")
-        box.Add(lol, 0, wx.ALL, 0)
+        lol = self.WithHorizontalLabel(panel, midi_combo, "MIDI Out:")
+        header.Add(lol, 0, wx.ALL, 0)
+        testing = wx.StaticText(panel, wx.ID_ANY, "Testing?!")
+        header.Add(testing, flag=wx.ALIGN_CENTER_VERTICAL)
+        box.Add(header)
 
         panel.SetSizer(box)
         panel.Layout()
@@ -84,11 +96,11 @@ class AppFrame(wx.Frame):
     	label_text = wx.StaticText(window, wx.ID_ANY, label)
     	label_text.SetFont(wx.Font(12, wx.DEFAULT, wx.NORMAL, wx.BOLD))
     	box.Add(label_text, proportion=0,
-    		flag=wx.LEFT | wx.RIGHT | wx.ALIGN_CENTER_VERTICAL,
+    		flag=wx.RIGHT | wx.ALIGN_CENTER_VERTICAL,
     		border=10)
     	box.Add(thing, proportion=0,
-    		flag=wx.TOP | wx.BOTTOM | wx.RIGHT | wx.ALIGN_CENTER_VERTICAL,
-    		border=10)
+    		flag=wx.ALIGN_CENTER_VERTICAL,
+    		border=0)
     	return box
 
     def OnMidiCombo(self, arg):
