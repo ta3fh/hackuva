@@ -69,11 +69,30 @@ class AppFrame(wx.Frame):
         m_close.Bind(wx.EVT_BUTTON, self.OnClose)
         box.Add(m_close, 0, wx.ALL, 10)
 
-        midi_list = wx.ListBox(panel, wx.ID_ANY, choices="Wow Such Drop Down Many Choices".split())
-        box.Add(midi_list, 0, wx.ALL, 10)
+
+        midi_combo = wx.ComboBox(panel, wx.ID_ANY, choices="Wow Such Drop Down Many Choices".split())
+        midi_combo.SetEditable(False)
+        midi_combo.Bind(wx.EVT_COMBOBOX, self.OnMidiCombo)
+        lol = self.WithHorizontalLabel(panel, midi_combo, "MIDI Out")
+        box.Add(lol, 0, wx.ALL, 0)
 
         panel.SetSizer(box)
         panel.Layout()
+
+    def WithHorizontalLabel(self,window,thing,label):
+    	box = wx.BoxSizer(wx.HORIZONTAL)
+    	label_text = wx.StaticText(window, wx.ID_ANY, label)
+    	label_text.SetFont(wx.Font(12, wx.DEFAULT, wx.NORMAL, wx.BOLD))
+    	box.Add(label_text, proportion=0,
+    		flag=wx.LEFT | wx.RIGHT | wx.ALIGN_CENTER_VERTICAL,
+    		border=10)
+    	box.Add(thing, proportion=0,
+    		flag=wx.TOP | wx.BOTTOM | wx.RIGHT | wx.ALIGN_CENTER_VERTICAL,
+    		border=10)
+    	return box
+
+    def OnMidiCombo(self, arg):
+    	print arg.GetInt()
 
     def OnClose(self, event):
         dlg = wx.MessageDialog(self,
@@ -89,7 +108,7 @@ class AppFrame(wx.Frame):
         dlg.ShowModal()
         dlg.Destroy()
 
-app = wx.App(redirect=True)   # Error messages go to popup window
+app = wx.App(redirect=False)   # Error messages go to popup window
 top = AppFrame("Leap Music")
 top.Show()
 app.MainLoop()
