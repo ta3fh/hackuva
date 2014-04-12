@@ -14,4 +14,4 @@
 * Leap Motion drivers/SDK 1.0.8 (or something close)
 
 ### Info
-It's gonna be totally awesome!
+It's gonna be totally awesome! Group programming!
