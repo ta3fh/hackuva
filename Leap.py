@@ -1006,7 +1006,7 @@ class Controller(Interface):
     __repr__ = _swig_repr
     __swig_destroy__ = LeapPython.delete_Controller
     __del__ = lambda self : None;
-    def __init__(self, *args): 
+    def __init__(self, *args):
         this = LeapPython.new_Controller(*args)
         try: self.this.append(this)
         except: self.this = this

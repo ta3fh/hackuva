@@ -13,103 +13,84 @@ class Note:
     def __eq__(self,other):
         return self.midiVal == other.midiVal
 
-class Axis:
-    def __init__(self, min, max, param):
-        self.min = min
-        self.max = max
-        self.param = param
-
-    def __eq__(self, other):
-        return self.param == other.param #will only ever be called on active axes to avoid empty strings matching
-
 class Baton:
 
-    # def __init__(self, maxHistory, hand):
-    #     self.id = hand.id
-    #     self.history = [hand]
-    #     self.maxHistory = maxHistory
-
-    def __init__(self, maxHistory, hand, yParam="velocity", zParam="", rollParam="", pitchParam="", yawParam=""):
+    def __init__(self, maxHistory, hand, note="x", velocity="y", controller="z", aftertouch = "",
+                 pitchbend = "", pressure = "" ):
         self.id = hand.id
         self.history = [hand]
         self.maxHistory = maxHistory
+        self.config = [note, velocity, controller, aftertouch, pressure, pitchbend]
 
-        #Axes array has indices 0:x, 1:y, 2:z, 3:roll, 4:pitch, 5:yaw
-        self.axes = []
-        self.axes.append(Axis(constants.x_min, constants.x_max, "note")) #hard coded note value on x axis for now
-        self.axes.append(Axis(constants.y_min, constants.y_max, yParam))
-        self.axes.append(Axis(constants.z_min, constants.z_max, zParam))
-        self.axes.append(Axis(constants.roll_min, constants.roll_max, rollParam))
-        self.axes.append(Axis(constants.pitch_min, constants.pitch_max, pitchParam))
-        self.axes.append(Axis(constants.yaw_min, constants.yaw_max, yawParam))
         print "created a new baton"
 
-    #returns Axis assigned to given midi parameter
-    def getAxisByAttr(self, attr):
-        for axis in self.axes:
-            if axis.param == attr:
-                return axis
-        return None #shouldn't happen, hopefully
+    def getVals(self):
+        config = self.config
+        ret = []
+        for axis in config: #note, velocity, controller, aftertouch, pressure
+            if config.index(axis) == 5:
+                break
+            if axis == "":
+                ret.append(None)
+            elif axis == "x":
+                ret.append(int(map_range(self.getXValue(), constants.x_min, constants.x_max, 50, 100)))
+            elif axis == "y":
+                ret.append(int(map_range(self.getYValue(), constants.y_min, constants.y_max, 0, 127)))
+            elif axis == "z":
+                ret.append(int(map_range(self.getZValue(), constants.z_min, constants.z_max, 0, 127)))
+            elif axis == "pitch":
+                ret.append(int(map_range(self.getPitchValue(), constants.pitch_min, constants.pitch_max, 0, 127)))
+            elif axis == "roll":
+                ret.append(int(map_range(self.getRollValue(), constants.roll_min, constants.roll_max, 0, 127)))
+            elif axis == "yaw":
+                ret.append(int(map_range(self.getYawValue(), constants.yaw_min, constants.yaw_max, 0, 127)))
 
-    #returns the current LeapMotion value for an axis by calling the appropriate smoothing method for that axis
-    def getAxisValue(self, axis):
-        if axis == self.axes[0]:
-            return self.getXValue()
-        if axis == self.axes[1]:
-            return self.getYValue()
-        if axis == self.axes[2]:
-            return self.getZValue()
-        if axis == self.axes[3]:
-            return self.getRollValue()
-        if axis == self.axes[4]:
-            return self.getPitchValue()
-        if axis == self.axes[5]:
-            return self.getYawValue()
+        if config[5] == "": #pitchbend because MSB and LSB
+            ret.append(None)
+        elif config[5] == "x":
+            ret.append(int(map_range(self.getXValue(), constants.x_min, constants.x_max, 0x0, 0x7f)))
+        elif config[5] == "y":
+            ret.append(int(map_range(self.getYValue(), constants.y_min, constants.y_max, 0x0, 0x7f)))
+        elif config[5] == "z":
+            ret.append(int(map_range(self.getZValue(), constants.z_min, constants.z_max, 0x0, 0x7f)))
+        elif config[5] == "pitch":
+            ret.append(int(map_range(self.getPitchValue(), constants.pitch_min, constants.pitch_max, 0x0, 0x7f)))
+        elif config[5] == "roll":
+            ret.append(int(map_range(self.getRollValue(), constants.roll_min, constants.roll_max, 0x0, 0x7f)))
+        elif config[5] == "yaw":
+            ret.append(int(map_range(self.getYawValue(), constants.yaw_min, constants.yaw_max, 0x0, 0x7f)))
 
-    #gets all active axes, hard coded minus x axis and velocity axis
-    def activeAxes(self):
-        active = []
-        for axis in self.axes:
-            if axis.param != "" and axis.param != "velocity": #hard coded exclude velocity
-                active.append(axis)
-        active.pop(0) #hard coded remove x axis
-        return active
+        return ret
 
-    #returns a list of midi messages to player for the 'extra' axes currently assigned to a midi parameter
-    def getMessages(self):
+    def generateMessages(self):
         messages = []
-        for axis in self.activeAxes():
-            messages.append(self.generateMessage(axis))
+        vals = self.getVals()
 
-        print "messages: " + messages
+        velocity = constants.velocity_default
+        if vals[1] is not None:
+            velocity = vals[1]
+
+        #note and aftertouch
+        if vals[0] is not None:
+            messages.append([constants.noteon, vals[0], velocity])
+            if vals[3] is not None:
+                messages.append([constants.aftertouch, vals[0], vals[3]])
+
+        #controller
+        if vals[2] is not None:
+            messages.append([constants.controller, vals[2], 7]) #TODO: implement variable controller parameter
+
+        #pressure
+        if vals[4] is not None:
+            messages.append([constants.channelpressure, vals[4]])
+
+        #pitchbend
+        if vals[5] is not None:
+            hexy = hex(vals[5])
+            msb = hexy[2:4]
+            lsb = hexy[4:]
+            messages.append([constants.pitchbend, int(lsb), int(msb)])
         return messages
-
-    #generates a midi message for an 'extra' axis to send to the player
-    def generateMessage(self, axis):
-        commands = {
-            #'aftertouch' : 0xA0,
-            'controller': 0xB0,
-            #'patchchange': 0xC0,
-            'channelpressure': 0xD0,
-            'pitchbend': 0xE0,
-            #'misc': 0xF0,
-        }
-        key = axis.param
-        param1 = -1
-        param2 = -1
-        if axis.param.find("_") != -1:
-            param1 = int(key[axis.param.find("_") + 1:])
-            key = key[:axis.param.find("_")] #strip param so hex command remains
-        if key == 'pitchbend': #need to implement MSB and LSB as two params
-            pass
-        elif param1 == -1: #first message param is axis value if not supplied in axis param
-            param1 = int(map_range(self.getAxisValue(axis), axis.min, axis.max, 0, 127))
-        else: #else second message param is axis value, because first message param was supplied on axis assignment
-            param2 = int(map_range(self.getAxisValue(axis), axis.min, axis.max, 0, 124))
-        command = int(commands[key] + (self.getChannel() - 1)) #apply channel to command hex
-        print "MESSAGE GENERATED: " + str([command, param1, param2])
-        return [command, param1, param2]
-
 
 
     def getAxis(self, key):
@@ -138,6 +119,7 @@ class Baton:
             history.append(hand)
         while len(history) > self.maxHistory:
             history.pop(0)
+        #print len(history)
         return True
 
 
@@ -194,12 +176,6 @@ class Baton:
     def flushHistory(self):
         self.history = []
 
-    def getNote(self, velocity=100):
-        midiVal = int(map_range(self.getXValue(), constants.x_min, constants.x_max, 60, 72))
-        velocity = int(map_range(self.getYValue(), constants.y_min, constants.y_max, 0, 127))
-        #print "VELOCITY: " + str(map_range(self.getAxisValue(self.getAxisByAttr("velocity")), 100, 500, 0, 127))
-        #velocity = int(map_range(self.getAxisValue(self.getAxisByAttr("velocity")), 100, 500, 0, 127))
-        return Note(midiVal, velocity, int(self.getChannel()))
 
 
 class Player:
@@ -214,36 +190,43 @@ class Player:
 
     def sync(self): #handles midi messages from baton's parameters
         batons = self.batons
-        notes = []
+        messages = []
         for baton in batons:
             if len(baton.history) is not 0:
-                notes.append(baton.getNote())
-                #for message in baton.getMessages():
-                    #self.midiOut.send_message(message)
-        print notes
-        for note in notes:
-            if note not in self.playing_notes:
-                print "playing new note!"
-                self.playNote(note)
-        for note in self.playing_notes:
-            if note not in notes:
-                self.stopNote(note)
+                messages = baton.generateMessages()
+        notesNow = []
+        for message in messages:
+            if message[0] != constants.noteon:
+                if message[0] == constants.controller:
+                    print "Setting controller to %d." % message[1]
+                self.midiOut.send_message(message) #send message if not a note
+            else:
+                notesNow.append(message[1])
+                if message[1] not in self.playing_notes: #it is a note
+                    self.playing_notes.append(message[1])
+                    self.midiOut.send_message(message)
+                else: #note already playing
+                    pass
+                for note in self.playing_notes: #handle note offs
+                    if note not in notesNow:
+                        self.midiOut.send_message([constants.noteoff, note, 100])
+                        self.playing_notes.remove(note)
 
     def playNote(self, note):
         playing_notes = self.playing_notes
         if note not in playing_notes:
             playing_notes.append(note)
-            if note.channel > 0:
-                #self.midiOut.send_message([0x90 + (note.channel - 1), note.midiVal, note.velocity])
-                self.midiOut.send_message([0x90, note.midiVal, note.velocity])
+            #if note.channel > 0:
+            #self.midiOut.send_message([0x90 + (note.channel - 1), note.midiVal, note.velocity])
+            self.midiOut.send_message([0x90, note.midiVal, note.velocity])
 
     def stopNote(self, note):
         playing_notes = self.playing_notes
         if note in playing_notes:
             playing_notes.remove(note)
-            if note.channel > 0:
-                #self.midiOut.send_message([0x80 + (note.channel - 1), note.midiVal, note.velocity])
-                self.midiOut.send_message([0x80, note.midiVal, note.velocity])
+            #if note.channel > 0:
+            #self.midiOut.send_message([0x80 + (note.channel - 1), note.midiVal, note.velocity])
+            self.midiOut.send_message([0x80, note.midiVal, note.velocity])
 
     # def controlChange(self, controller, value):
     #     self.midiOut.send_message([0xB0 + ( - 1)
@@ -275,14 +258,12 @@ class Player:
                 if not baton.update(None):
                     self.batons.remove(baton)
 
-
 def main():
-
-    sleep(1)
+    # sleep(1)
 
     leap = Controller()
 
-    player = Player(rtmidi.MidiOut(), 2, 100)
+    player = Player(rtmidi.MidiOut(), 2, 50)
 
     playing_notes = []
     possible_notes = [50,52,54,55,57,59,61,62]
@@ -297,7 +278,7 @@ def main():
         player.update(hands)
 
         player.sync()
-        sleep(1)
+        #sleep(1.0/10.0)
 
 def map_range(num, min1, max1, min2, max2, clamp=True):
     percent = (num-min1)/(max1-min1)
