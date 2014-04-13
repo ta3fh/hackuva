@@ -51,12 +51,12 @@ class AppFrame(wx.Frame):
         wx.Frame.__init__(self, None, title=title, pos=(150,150), size=(350,200))
         self.Bind(wx.EVT_CLOSE, self.OnClose)
 
-        cfg_menu = wx.Menu()
+        # cfg_menu = wx.Menu()
 
         menuBar = wx.MenuBar()
         menu = wx.Menu()
         menuBar.Append(menu, "&File")
-        menuBar.Append(cfg_menu, "&Settings")
+        # menuBar.Append(cfg_menu, "&Settings")
         m_exit = menu.Append(wx.ID_EXIT, "E&xit\tAlt-X", "Close window and exit program.")
         self.Bind(wx.EVT_MENU, self.OnClose, m_exit)
         menu = wx.Menu()
@@ -92,7 +92,7 @@ class AppFrame(wx.Frame):
             self.music_app.set_out(len(ports)-1)
         midi_combo.SetEditable(False)
         midi_combo.Bind(wx.EVT_COMBOBOX, self.OnMidiCombo)
-        lol = self.WithHorizontalLabel(panel, midi_combo, "MIDI Out:")
+        lol = self.WithHorizontalLabel(panel, midi_combo, "MIDI Out   ")
         footer.Add(lol, 0, wx.ALL, 0)
 
         axes = ["[None]","X","Y","Z","Pitch","Roll","Yaw"]
@@ -304,13 +304,24 @@ class AppFrame(wx.Frame):
                 self.control_dict[key].append(ctrl_num)
                 axis_box.Add(ctrl_num, wx.GBPosition(y,2), flag=flag)
 
-        title = self.GenDefaultLabel(panel,"Leap Music")
-        title.SetFont(wx.Font(28, wx.DEFAULT, wx.NORMAL, wx.NORMAL))
-        axis_box.Add(title, wx.GBPosition(2,5),flag=wx.ALIGN_CENTER,
-                     span=wx.GBSpan(5,3))
+        # title = self.GenDefaultLabel(panel,"Leap Music")
+        # title.SetFont(wx.Font(28, wx.DEFAULT, wx.NORMAL, wx.NORMAL))
+
+
+        title = wx.Image("logo.png",type=wx.BITMAP_TYPE_PNG)
+        bitmap = wx.StaticBitmap(panel,wx.ID_ANY,wx.BitmapFromImage(title))
+        axis_box.Add(bitmap, wx.GBPosition(3,5),flag=wx.ALIGN_CENTER_HORIZONTAL | wx.ALIGN_BOTTOM,
+                     span=wx.GBSpan(3,3))
+        sub = self.GenDefaultLabel(panel,"MIDI Controller",wx.NORMAL)
+        axis_box.Add(sub, wx.GBPosition(6,5),flag=wx.ALIGN_CENTER_HORIZONTAL | wx.ALIGN_TOP,
+                     span=wx.GBSpan(1,3))
 
         box.Add(axis_box, flag=wx.ALL, border=20)
         box.Add(footer, border=20, flag=wx.ALL)
+
+        scale_reminder = self.GenDefaultLabel(panel,"(Scale overrides note range)")
+        scale_reminder.SetFont(wx.Font(8, wx.DEFAULT, wx.ITALIC, wx.NORMAL))
+        axis_box.Add(scale_reminder,wx.GBPosition(2,5),flag=wx.ALIGN_TOP | wx.ALIGN_CENTER_HORIZONTAL)
 
 
         panel.SetSizer(box)
@@ -360,9 +371,9 @@ class AppFrame(wx.Frame):
                 port_ctrl = controls[3]
                 port_ctrl.SetValue(port)
 
-    def GenDefaultLabel(self,window,text):
+    def GenDefaultLabel(self,window,text,boldness=wx.BOLD):
         label_text = wx.StaticText(window, wx.ID_ANY, text)
-        label_text.SetFont(wx.Font(11, wx.DEFAULT, wx.NORMAL, wx.BOLD))
+        label_text.SetFont(wx.Font(11, wx.DEFAULT, wx.NORMAL, boldness))
         return label_text
 
     def WithHorizontalLabel(self,window,thing,label):
@@ -382,8 +393,8 @@ class AppFrame(wx.Frame):
 
     def OnClose(self, event):
         dlg = wx.MessageDialog(self,
-            "Do you really want to close this application?",
-            "Confirm Exit", wx.OK|wx.CANCEL|wx.ICON_QUESTION)
+            "Do you really want to quit Leap Music?",
+            "See you later!", wx.OK|wx.CANCEL|wx.ICON_QUESTION)
         result = dlg.ShowModal()
         dlg.Destroy()
         if result == wx.ID_OK:
@@ -397,6 +408,7 @@ class AppFrame(wx.Frame):
 
 app = wx.App(redirect=False)   # Error messages go to popup window
 top = AppFrame("Leap Music")
-top.SetSizeWH(650,450)
+top.SetSizeWH(680,450)
+top.SetWindowStyle(top.GetWindowStyle() & (~wx.RESIZE_BORDER) & (~wx.MAXIMIZE_BOX))
 top.Show()
 app.MainLoop()
