@@ -1,3 +1,8 @@
+#COOL DEMO: modulation only w/keyboard
+
+#modulation is CONTROL 1
+
+
 from Leap import *
 import rtmidi_python as rtmidi
 from time import sleep

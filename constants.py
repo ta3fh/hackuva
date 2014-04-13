@@ -9,8 +9,12 @@ z_min = -100
 z_max = 100
 pitch_min = -90
 pitch_max = 90
-roll_min = -90
-roll_max = 90
+#roll_min = -90
+#roll_max = 90
+
+roll_min = -0.65
+roll_max = 0.55
+
 yaw_min = -90
 yaw_max = 90
 
