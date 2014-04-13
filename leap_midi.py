@@ -71,7 +71,6 @@ class Baton:
         self.history = [hand]
         self.maxHistory = maxHistory
         self.config = [note, velocity, controller1, controller2, controller3, controller4]
-        setAxis_controller1("z")
 
         #TODO: make note scaling GUI side
         self.scale = [50,53,55,57,60]
