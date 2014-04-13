@@ -1,4 +1,4 @@
-# Leap Motion MIDI Controller
+# Leap Music: Leap Motion MIDI Controller
 
 ## Project for hack.uva
 
