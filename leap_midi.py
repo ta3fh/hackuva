@@ -3,8 +3,11 @@ import rtmidi_python as rtmidi
 from time import sleep
 import constants
 
+from threading import Thread
 
-global note, velocity, controller1, controller2, controller3, controller4, ctrlPort1, ctrlPort2, ctrlPort3, ctrlPort4
+from constants import axis_min, axis_max
+
+
 note = "x"
 velocity = "z"
 controller1 = "yaw"
@@ -16,6 +19,12 @@ ctrlPort2 = 7
 ctrlPort3 = 11
 ctrlPort4 = 16
 
+range_note = [50, 70] #TODO: implement note schemas
+range_velocity = [0, 127]
+range_controller1 = [0, 127]
+range_controller2 = [0, 127]
+range_controller3 = [0, 127]
+range_controller4 = [0, 127]
 
 def setAxis_note(axis):
     global note
@@ -79,28 +88,26 @@ class Baton:
 
         # print "created a new baton"
 
-    def getVals(self):
+    def getVals(self): # FLOAT values from 0-1000, or axis_min to axis_max
         config = self.config
         ret = []
         for axis in config: #note, velocity, controller1, controller2, controller3, controller4
             if axis == "":
                 ret.append(None)
             elif axis == "x":
-                #TODO: make note scaling GUI side
-                idx = int(map_range(self.getXValue(), constants.x_min, constants.x_max, 0, len(self.scale)-1))
-                ret.append( self.scale[idx] )
+                ret.append(map_range(self.getXValue(), constants.x_min, constants.x_max, constants.axis_min, constants.axis_max))
             elif axis == "y":
-                ret.append(int(map_range(self.getYValue(), constants.y_min, constants.y_max, 0, 127)))
+                ret.append(map_range(self.getYValue(), constants.y_min, constants.y_max, constants.axis_min, constants.axis_max))
             elif axis == "z":
-                ret.append(int(map_range(self.getZValue(), constants.z_min, constants.z_max, 127, 0)))
-            elif axis == "pitch":
-                ret.append(int(map_range(self.getPitchValue(), constants.pitch_min, constants.pitch_max, 0, 127)))#backwards because
+                ret.append(map_range(self.getZValue(), constants.z_min, constants.z_max, constants.axis_max, constants.axis_min))
                                             #we  want away from body to be greater value
+            elif axis == "pitch":
+                ret.append(map_range(self.getPitchValue(), constants.pitch_min, constants.pitch_max, constants.axis_min, constants.axis_max))
             elif axis == "roll":
-                ret.append(int(map_range(self.getRollValue(), constants.roll_min, constants.roll_max, 127, 0)))  #backwards because
+                ret.append(map_range(self.getRollValue(), constants.roll_min, constants.roll_max, constants.axis_max, constants.axis_min))  #backwards because
                                             #right hand is more intuitive to twist positive the opposite way we didn't ask for this life
             elif axis == "yaw":
-                ret.append(int(map_range(self.getYawValue(), constants.yaw_min, constants.yaw_max, 0, 127)))
+                ret.append(map_range(self.getYawValue(), constants.yaw_min, constants.yaw_max, constants.axis_min, constants.axis_max))
 
         return ret
 
@@ -110,21 +117,33 @@ class Baton:
 
         velocity = constants.velocity_default
         if vals[1] is not None:
-            velocity = vals[1]
+            global range_velocity
+            velocity = int(map_range(vals[1],constants.axis_min,constants.axis_max,range_velocity[0],range_velocity[1]))
 
         #note (and velocity)
+        # TODO note and velocity scaling, etc
         if vals[0] is not None:
-            messages.append([constants.noteon, vals[0], velocity])
+            global range_note
+            note = int(map_range(vals[0],axis_min,axis_max,range_note[0],range_note[1]))
+            messages.append([constants.noteon, note, velocity])
 
         #controllers 1-4
         if vals[2] is not None:
-            messages.append([constants.controller, ctrlPort1, vals[2]])
+            global range_controller1
+            val = int(map_range(vals[2],axis_min,axis_max,range_controller1[0],range_controller1[1]))
+            messages.append([constants.controller, ctrlPort1, val])
         if vals[3] is not None:
-            messages.append([constants.controller, ctrlPort2, vals[3]])
+            global range_controller2
+            val = int(map_range(vals[3],axis_min,axis_max,range_controller2[0],range_controller2[1]))
+            messages.append([constants.controller, ctrlPort2, val])
         if vals[4] is not None:
-            messages.append([constants.controller, ctrlPort3, vals[4]])
+            global range_controller3
+            val = int(map_range(vals[4],axis_min,axis_max,range_controller3[0],range_controller3[1]))
+            messages.append([constants.controller, ctrlPort3, val])
         if vals[5] is not None:
-            messages.append([constants.controller, ctrlPort4, vals[5]])
+            global range_controller4
+            val = int(map_range(vals[5],axis_min,axis_max,range_controller4[0],range_controller4[1]))
+            messages.append([constants.controller, ctrlPort4, val])
 
         return messages
 
@@ -311,13 +330,11 @@ class Player:
                     # STOP PLAYING NOTES!!!
                     # print "Removed batons, %d remaining" % len(self.batons)
 
-class app():
-
-    def __init__(self):
-        print "Hai"
+class LeapMusicApp(Thread):
 
     def run(self):
         leap = Controller()
+        self.done = False
 
         player = Player(rtmidi.MidiOut(), 2, 50)
 
@@ -325,7 +342,7 @@ class app():
         possible_notes = [50,52,54,55,57,59,61,62]
         possible_notes = map(lambda x: x+12,possible_notes)
 
-        while True:
+        while not self.done:
             frame = leap.frame()
 
             hands = []
@@ -336,6 +353,8 @@ class app():
 
             player.sync()
 
+        # TODO stop all playing notes :-)
+
 
 if __name__ ==  "__main__":
-    app().run()
+    LeapMusicApp().run()

@@ -20,6 +20,9 @@ roll_max = 0.55
 yaw_min = -0.3
 yaw_max = 0.3
 
+axis_min = 0
+axis_max = 1000
+
 global velocity_default
 velocity_default = 100
 

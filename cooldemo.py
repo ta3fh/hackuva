@@ -75,7 +75,7 @@ class Baton:
         #controllers 1-4
         for i in range(2,5):
             if vals[i] is not None:
-                messages.append([constants.controller, 1, vals[i]]) #TODO: implement variable controller parameter
+                messages.append([constants.controller, 1, vals[i]])
 
         return messages
 
