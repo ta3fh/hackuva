@@ -15,12 +15,15 @@ class Note:
 
 class Baton:
 
-    def __init__(self, maxHistory, hand, note="x", velocity="y", controller="z", aftertouch = "",
+    def __init__(self, maxHistory, hand, note="", velocity="", controller="y", aftertouch = "",
                  pitchbend = "", pressure = "" ):
         self.id = hand.id
         self.history = [hand]
         self.maxHistory = maxHistory
         self.config = [note, velocity, controller, aftertouch, pressure, pitchbend]
+        self.scale = [50,53,55,57,60]
+        self.scale += map(lambda x: x+12, self.scale)
+        self.scale.append(self.scale[0]+24)
 
         print "created a new baton"
 
@@ -33,9 +36,10 @@ class Baton:
             if axis == "":
                 ret.append(None)
             elif axis == "x":
-                ret.append(int(map_range(self.getXValue(), constants.x_min, constants.x_max, 50, 100)))
+                idx = int(map_range(self.getXValue(), constants.x_min, constants.x_max, 0, len(self.scale)-1))
+                ret.append( self.scale[idx] )
             elif axis == "y":
-                ret.append(int(map_range(self.getYValue(), constants.y_min, constants.y_max, 0, 127)))
+                ret.append(int(map_range(self.getYValue(), constants.y_min, constants.y_max, 80, 127)))
             elif axis == "z":
                 ret.append(int(map_range(self.getZValue(), constants.z_min, constants.z_max, 0, 127)))
             elif axis == "pitch":
@@ -78,7 +82,7 @@ class Baton:
 
         #controller
         if vals[2] is not None:
-            messages.append([constants.controller, vals[2], 7]) #TODO: implement variable controller parameter
+            messages.append([constants.controller, 1, vals[2]]) #TODO: implement variable controller parameter
 
         #pressure
         if vals[4] is not None:
@@ -129,7 +133,7 @@ class Baton:
         for h in history:
             total += len(h.fingers)
         if len(history) is not 0:
-            return float(total)/float(len(history))
+            return int(float(total)/float(len(history)))
         else:
             return 0
 
@@ -202,7 +206,7 @@ class Player:
         batons = self.batons
         messages = []
         for baton in batons:
-            print baton.getFingerValue()
+            # print baton.getFingerValue()
             if baton.getFingerValue() < 1:
                 continue
             if len(baton.history) is not 0:
@@ -216,14 +220,15 @@ class Player:
             else:
                 notesNow.append(message[1])
                 if message[1] not in self.playing_notes: #it is a note
+                    print "Playing new note"
                     self.playing_notes.append(message[1])
                     self.midiOut.send_message(message)
                 else: #note already playing
                     pass
-                for note in self.playing_notes: #handle note offs
-                    if note not in notesNow:
-                        self.midiOut.send_message([constants.noteoff, note, 100])
-                        self.playing_notes.remove(note)
+        for note in self.playing_notes: #handle note offs
+            if note not in notesNow:
+                self.midiOut.send_message([constants.noteoff, note, 100])
+                self.playing_notes.remove(note)
 
     def playNote(self, note):
         playing_notes = self.playing_notes
@@ -270,6 +275,8 @@ class Player:
             if baton not in found_batons:
                 if not baton.update(None):
                     self.batons.remove(baton)
+                    # STOP PLAYING NOTES!!!
+                    print "Removed batons, %d remaining" % len(self.batons)
 
 def main():
     # sleep(1)
@@ -287,7 +294,8 @@ def main():
 
         hands = []
         for hand in frame.hands:
-            hands.append(hand)
+            if True or hand.palm_position.z < 0:
+                hands.append(hand)
         player.update(hands)
 
         player.sync()

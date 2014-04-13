@@ -4,7 +4,7 @@ global x_min, x_max, y_min, y_max, z_min, z_max, pitch_min, pitch_max, roll_min,
 x_min = -350
 x_max = 350
 y_min = 100
-y_max = 500
+y_max = 350
 z_min = -100
 z_max = 100
 pitch_min = -90
