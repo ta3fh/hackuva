@@ -23,6 +23,16 @@ yaw_max = 0.3
 axis_min = 0
 axis_max = 1000
 
+scale_offsets = {
+    "Major": [0,2,4,5,7,9,11],
+    "Natural Minor": [0,2,3,5,7,8,10],
+    "Harmonic Minor": [0,2,3,5,7,8,11],
+    "Melodic Minor": [0,2,3,5,7,9,11],
+    "Pentatonic Major": [0,2,4,7,9],
+    "Penatonic Minor": [0,3,5,7,10],
+    "Chromatic": range(0,12)
+}
+
 global velocity_default
 velocity_default = 100
 

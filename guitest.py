@@ -50,15 +50,21 @@ class AppFrame(wx.Frame):
         wx.Frame.__init__(self, None, title=title, pos=(150,150), size=(350,200))
         self.Bind(wx.EVT_CLOSE, self.OnClose)
 
+        cfg_menu = wx.Menu()
+
         menuBar = wx.MenuBar()
         menu = wx.Menu()
+        menuBar.Append(menu, "&File")
+        menuBar.Append(cfg_menu, "&Settings")
         m_exit = menu.Append(wx.ID_EXIT, "E&xit\tAlt-X", "Close window and exit program.")
         self.Bind(wx.EVT_MENU, self.OnClose, m_exit)
-        # menuBar.Append(menu, "&File")
         menu = wx.Menu()
         m_about = menu.Append(wx.ID_ABOUT, "&About", "Information about this program")
         self.Bind(wx.EVT_MENU, self.OnAbout, m_about)
         menuBar.Append(menu, "&Help")
+
+
+
         self.SetMenuBar(menuBar)
 
         self.statusbar = self.CreateStatusBar()
@@ -75,35 +81,69 @@ class AppFrame(wx.Frame):
         # m_close.Bind(wx.EVT_BUTTON, self.OnClose)
         # box.Add(m_close, 0, wx.ALL, 10)
 
-        header = wx.BoxSizer(wx.HORIZONTAL)
-        ports = ["[None]"]
+        footer = wx.BoxSizer(wx.HORIZONTAL)
+        ports = []
         for port_name in rtmidi.MidiOut().ports:
             ports.append(port_name)
         midi_combo = wx.ComboBox(panel, wx.ID_ANY, choices=ports)
-        if len(ports) > 0:  # TODO make this dropdown actually set stuff
-            evt = wx.CommandEvent(wx.EVT_COMBOBOX.typeId, winid=wx.ID_ANY)
-            evt.SetInt(len(ports)-1)
-            wx.PostEvent(midi_combo,evt)
-            midi_combo.SetStringSelection(ports[-1])
+        if len(ports) > 0:
+            midi_combo.Select(len(ports)-1)
+            self.music_app.set_out(len(ports)-1)
         midi_combo.SetEditable(False)
         midi_combo.Bind(wx.EVT_COMBOBOX, self.OnMidiCombo)
         lol = self.WithHorizontalLabel(panel, midi_combo, "MIDI Out:")
-        header.Add(lol, 0, wx.ALL, 0)
-        testing = wx.StaticText(panel, wx.ID_ANY, "Testing?!")
-        header.Add(testing, flag=wx.ALIGN_CENTER_VERTICAL)
-        box.Add(header)
+        footer.Add(lol, 0, wx.ALL, 0)
 
         axes = ["[None]","X","Y","Z","Pitch","Roll","Yaw"]
         axis_names = ["","x","y","z","pitch","roll","yaw"]
         options = ["Note","Velocity","Controller 1","Controller 2","Controller 3","Controller 4"]
-        columns = ["MIDI","Axis","MIDI Min","MIDI Max"]
+        columns = ["","Axis","Port","Range"]
 
-        axis_box = wx.GridBagSizer(vgap=0,hgap=10)
+        self.control_dict = {}
+
+        axis_box = wx.GridBagSizer(vgap=10,hgap=10)
 
         for j in range(0,len(columns)):
             col = columns[j]
             title = self.GenDefaultLabel(panel,col)
-            axis_box.Add(title, wx.GBPosition(0,j),flag=wx.ALIGN_CENTER | wx.ALIGN_CENTER_VERTICAL)
+            span = wx.GBSpan(1,1)
+            if col == "Range":
+                span = wx.GBSpan(1,2)
+            axis_box.Add(title, wx.GBPosition(0,j),flag=wx.ALIGN_CENTER | wx.ALIGN_CENTER_VERTICAL, span=span)
+
+        label_root = self.GenDefaultLabel(panel,"Root")
+        label_scale = self.GenDefaultLabel(panel,"Scale")
+        label_octaves = self.GenDefaultLabel(panel,"Octaves")
+        flagz = wx.ALIGN_CENTER | wx.ALIGN_CENTER_VERTICAL
+        axis_box.Add(label_root, wx.GBPosition(0,len(columns)+2),flag=flagz)
+        axis_box.Add(label_scale, wx.GBPosition(0,len(columns)+1),flag=flagz)
+        axis_box.Add(label_octaves, wx.GBPosition(0,len(columns)+3),flag=flagz)
+
+        roots = []
+        octave = 0
+        note_idx = 0
+        notes = ["C","C#","D","Eb","E","F","F#","G","Ab","A","Bb","B"]
+        for i in range(0,128-12):
+            st = notes[note_idx]+str(octave)
+            roots.append(st)
+            note_idx += 1
+            if note_idx == 12:
+                note_idx = 0
+                octave += 1
+
+        root_box = wx.ComboBox(panel, wx.ID_ANY, choices=roots)
+        axis_box.Add(root_box,wx.GBPosition(1,len(columns)+2),flag=flagz)
+
+        scale_choices = ["[None]"] + constants.scale_offsets.keys()
+        scale_box = wx.ComboBox(panel, wx.ID_ANY, choices=scale_choices)
+        axis_box.Add(scale_box,wx.GBPosition(1,len(columns)+1),flag=flagz)
+
+        octave_choices = []
+        for i in range(1,10):
+            octave_choices.append(str(i))
+
+        octave_box = wx.ComboBox(panel, wx.ID_ANY, choices=octave_choices)
+        axis_box.Add(octave_box,wx.GBPosition(1,len(columns)+3),flag=flagz)
 
         for i in range(0,len(options)):
             out = options[i]
@@ -153,12 +193,11 @@ class AppFrame(wx.Frame):
                     global range_controller4
                     range_controller4[0] = val
 
-            #TODO max is always one short
 
             def OnMaxChange(x):
                 # get FUNCTION from NAME
                 obj = x.GetEventObject()
-                val = x.GetInt()
+                val = x.GetInt() + 1
                 name = obj.GetName()
                 if name == options[0]:
                     global range_note
@@ -179,29 +218,38 @@ class AppFrame(wx.Frame):
                     global range_controller4
                     range_controller4[1] = val
 
+            key = "".join( out.lower().split() )
 
             label = self.GenDefaultLabel(panel,out)
             dropdown = wx.ComboBox(panel, wx.ID_ANY, choices=axes)
             dropdown.SetEditable(False)
             dropdown.Bind(wx.EVT_COMBOBOX, OnComboChange)
             dropdown.SetName(out)
-            spin_style = wx.SP_ARROW_KEYS
+            spin_style = wx.SP_ARROW_KEYS | wx.ALIGN_RIGHT
+
+            range_sz = wx.Size(w=49, h=25)
 
             min_num = wx.SpinCtrl(panel, wx.ID_ANY, min=0,max=127,
-                initial=0, value="0", style=spin_style)
+                initial=0, value="0", style=spin_style, size=range_sz)
             min_num.SetName(out)
             min_num.Bind(wx.EVT_SPINCTRL, OnMinChange)
 
             max_num = wx.SpinCtrl(panel, wx.ID_ANY, min=0,max=127,
-                initial=127, value="127", style=spin_style)
+                initial=127, value="127", style=spin_style, size=range_sz)
             max_num.SetName(out)
             max_num.Bind(wx.EVT_SPINCTRL, OnMaxChange)
 
-            flag = wx.ALIGN_CENTER | wx.ALIGN_CENTER_VERTICAL
-            axis_box.Add(label, wx.GBPosition(y,0),flag=flag)
-            axis_box.Add(dropdown, wx.GBPosition(y,1),flag=flag)
-            axis_box.Add(min_num, wx.GBPosition(y,2),flag=flag)
-            axis_box.Add(max_num, wx.GBPosition(y,3),flag=flag)
+            flag = wx.ALIGN_RIGHT | wx.ALIGN_CENTER_VERTICAL
+            flag = flag | wx.BOTTOM if i == 1 else flag
+            border = 30 if i == 1 else 0
+            axis_box.Add(label, wx.GBPosition(y,0),flag=flag,border=border)
+            axis_box.Add(dropdown, wx.GBPosition(y,1),flag=flag,border=border)
+            axis_box.Add(min_num, wx.GBPosition(y,3),flag=flag,border=border)
+            axis_box.Add(max_num, wx.GBPosition(y,4),flag=flag,border=border)
+
+            controls = [dropdown,min_num,max_num]
+
+            self.control_dict[key] = controls
 
             if "Controller" in out:
 
@@ -221,22 +269,66 @@ class AppFrame(wx.Frame):
 
 
                 ctrl_num = wx.SpinCtrl(panel, wx.ID_ANY, min=0,max=127,
-                    initial=0, value="0", style=spin_style)
+                    initial=0, value="0", style=spin_style, size=range_sz)
                 ctrl_num.SetName(out)
                 ctrl_num.Bind(wx.EVT_SPINCTRL, OnControllerChange)
-                axis_box.Add(ctrl_num, wx.GBPosition(y,4), flag=flag)
+                self.control_dict[key].append(ctrl_num)
+                axis_box.Add(ctrl_num, wx.GBPosition(y,2), flag=flag)
 
-        box.Add(axis_box)
+        box.Add(axis_box, flag=wx.ALL, border=20)
+        box.Add(footer, border=20, flag=wx.ALL)
+
 
         panel.SetSizer(box)
         panel.Layout()
 
+        # for k,v in self.control_dict.iteritems():
+        #     print len(v)
+
+        self.UpdateAllRowVals()
+
         # ACTUALLY START APP
         self.music_app.start()
 
+    def UpdateAllRowVals(self): # WARNING: EXTREME HAX AHEAD
+        set_vals = ["note","velocity","controller1","controller2","controller3","controller4"]
+        for v in set_vals:
+            global_val = globals()[v]
+            global_range = globals()["range_"+v] # worst code i have ever written in my life :'( loljk hax
+            global_port = None
+            if "controller" in v:
+                global_port = globals()["ctrlPort" + v[-1]] # just kidding. THIS is the worst. srsly.
+            self.UpdateRowValues(v,global_val,global_range[0],global_range[1],global_port)
+
+            # ^ Dear sweet baby Jesus this worked on the first try.
+            # i [love|hate] Python
+            # brb retiring from CS forever
+
+    def UpdateRowValues(self,key,axis,min,max,port=None):
+        if key in self.control_dict.keys():
+            controls = self.control_dict[key]
+            combo = controls[0]
+            min_spin = controls[1]
+            max_spin = controls[2]
+
+            i = 0
+            for option in combo.GetItems():
+                if option.lower() == axis:
+                    combo.Select(i)
+                    break
+                else:
+                    i += 1
+
+            min_spin.SetValue(min)
+            max_spin.SetValue(max)
+
+            if port is not None and len(controls) > 3:
+                port_ctrl = controls[3]
+                port_ctrl.SetValue(port)
+
     def GenDefaultLabel(self,window,text):
         label_text = wx.StaticText(window, wx.ID_ANY, text)
-        label_text.SetFont(wx.Font(12, wx.DEFAULT, wx.NORMAL, wx.BOLD))
+        label_text.SetFont(wx.Font(11, wx.DEFAULT, wx.NORMAL, wx.BOLD))
         return label_text
 
     def WithHorizontalLabel(self,window,thing,label):
@@ -251,7 +343,8 @@ class AppFrame(wx.Frame):
         return box
 
     def OnMidiCombo(self, arg):
-        print arg.GetInt()
+        i = arg.GetInt()
+        self.music_app.set_out(i)
 
     def OnClose(self, event):
         dlg = wx.MessageDialog(self,
@@ -270,6 +363,6 @@ class AppFrame(wx.Frame):
 
 app = wx.App(redirect=False)   # Error messages go to popup window
 top = AppFrame("Leap Music")
-top.SetDimensions(44,44,1100,600)
+top.SetSizeWH(650,450)
 top.Show()
 app.MainLoop()

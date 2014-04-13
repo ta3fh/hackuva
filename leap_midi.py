@@ -19,6 +19,8 @@ ctrlPort2 = 7
 ctrlPort3 = 11
 ctrlPort4 = 16
 
+scale_notes = None
+
 range_note = [50, 70] #TODO: implement note schemas
 range_velocity = [0, 127]
 range_controller1 = [0, 127]
@@ -123,8 +125,13 @@ class Baton:
         #note (and velocity)
         # TODO note and velocity scaling, etc
         if vals[0] is not None:
-            global range_note
-            note = int(map_range(vals[0],axis_min,axis_max,range_note[0],range_note[1]))
+            global range_note, scale_notes
+            note = None
+            if scale_notes is None:
+                note = int(map_range(vals[0],axis_min,axis_max,range_note[0],range_note[1]))
+            else:
+                note_idx = int(map_range(vals[0],axis_min,axis_max,0,len(scale_notes)))
+                note = scale_notes[note_idx]
             messages.append([constants.noteon, note, velocity])
 
         #controllers 1-4
@@ -248,11 +255,17 @@ class Player:
 
     def __init__(self, midiOut, midiPort, smoothing=5):
         self.midiOut = midiOut
-        self.midiPort = midiPort
-        self.midiOut.open_port(midiPort)
+        self.midiPort = None
+        self.switchPort(midiPort)
         self.batons = []
         self.playing_notes = []
         self.smoothing = smoothing
+
+    def switchPort(self, new_port):
+        if self.midiPort is not None:
+            self.midiOut.close_port()
+        self.midiOut.open_port(new_port)
+        self.midiPort = new_port
 
     def sync(self): #handles midi messages from baton's parameters
         batons = self.batons
@@ -272,7 +285,7 @@ class Player:
             else:
                 notesNow.append(message[1])
                 if message[1] not in self.playing_notes: #it is a note
-                    print "Playing new note"
+                    # print "Playing new note"
                     self.playing_notes.append(message[1])
                     self.midiOut.send_message(message)
                 else: #note already playing
@@ -332,11 +345,24 @@ class Player:
 
 class LeapMusicApp(Thread):
 
+    def __init__(self, out=None):
+        super(LeapMusicApp, self).__init__()
+        self.out = out
+        if self.out is None:
+            self.out = 0
+
+        self.player = Player(rtmidi.MidiOut(), self.out, 50)
+
+
+    def set_out(self,x):
+        self.player.switchPort(x)
+
     def run(self):
         leap = Controller()
         self.done = False
 
-        player = Player(rtmidi.MidiOut(), 2, 50)
+
+        player = self.player
 
         playing_notes = []
         possible_notes = [50,52,54,55,57,59,61,62]
