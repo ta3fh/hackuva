@@ -310,7 +310,7 @@ class Player:
             playing_notes.remove(note)
             #if note.channel > 0:
             #self.midiOut.send_message([0x80 + (note.channel - 1), note.midiVal, note.velocity])
-            self.midiOut.send_message([0x80, note.midiVal, note.velocity])
+            self.midiOut.send_message([0x80, note, 100])
 
     # def controlChange(self, controller, value):
     #     self.midiOut.send_message([0xB0 + ( - 1)
@@ -380,7 +380,7 @@ class LeapMusicApp(Thread):
 
             player.sync()
 
-        # TODO stop all playing notes :-)
+        self.player.flushNotes()
 
 
 if __name__ ==  "__main__":
