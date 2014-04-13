@@ -1,79 +1,33 @@
+#COOL DEMO: modulation only w/keyboard
+
+#modulation is CONTROL 1
+
+
 from Leap import *
 import rtmidi_python as rtmidi
 from time import sleep
 import constants
 
+class Note:
 
-global note, velocity, controller1, controller2, controller3, controller4, ctrlPort1, ctrlPort2, ctrlPort3, ctrlPort4
-note = "x"
-velocity = "z"
-controller1 = "yaw"
-controller2 = "y"
-controller3 = "pitch"
-controller4 = "roll"
-ctrlPort1 = 1
-ctrlPort2 = 7
-ctrlPort3 = 11
-ctrlPort4 = 16
+    def __init__(self, midiVal, velocity=100, channel=0):
+        self.midiVal = midiVal
+        self.velocity = velocity
+        self.channel = channel
 
-
-def setAxis_note(axis):
-    global note
-    note = axis
-
-def setAxis_velocity(axis):
-    global velocity
-    velocity = axis
-
-def setAxis_controller1(axis):
-    global controller1
-    controller1 = axis
-
-def setAxis_controller2(axis):
-    global controller2
-    controller2 = axis
-
-def setAxis_controller3(axis):
-    global controller3
-    controller3 = axis
-
-def setAxis_controller4(axis):
-    global controller4
-    controller4 = axis
-
-def setCtrlPort1(axis):
-    global ctrlPort1
-    ctrlPort1 = axis
-
-def setCtrlPort2(axis):
-    global ctrlPort2
-    ctrlPort2 = axis
-
-def setCtrlPort3(axis):
-    global ctrlPort3
-    ctrlPort3 = axis
-
-def setCtrlPort4(axis):
-    global ctrlPort4
-    ctrlPort4 = axis
-
-def map_range(num, min1, max1, min2, max2, clamp=True):
-    percent = (num-min1)/(max1-min1)
-    if clamp:
-        percent = 0 if percent < 0 else percent
-        percent = 1 if percent > 1 else percent
-    return min2 + percent*(max2-min2)
+    def __eq__(self,other):
+        return self.midiVal == other.midiVal
 
 class Baton:
 
-    def __init__(self, maxHistory, hand):
+    def __init__(self, maxHistory, hand, note="", velocity="", controller1="", controller2 = "y",
+                 controller3 = "", controller4 = "", ctrl1=1, ctrl2=7, ctrl3=11, ctrl4=16):
         self.id = hand.id
         self.history = [hand]
         self.maxHistory = maxHistory
         self.config = [note, velocity, controller1, controller2, controller3, controller4]
-        setAxis_controller1("z")
 
-        #TODO: make note scaling GUI side
+        #TODO: make scaling GUI side
         self.scale = [50,53,55,57,60]
         self.scale += map(lambda x: x+12, self.scale)
         self.scale.append(self.scale[0]+24)
@@ -84,19 +38,20 @@ class Baton:
         config = self.config
         ret = []
         for axis in config: #note, velocity, controller1, controller2, controller3, controller4
+            if config.index(axis) == 5:
+                break
             if axis == "":
                 ret.append(None)
             elif axis == "x":
-                #TODO: make note scaling GUI side
+                #TODO: scaling GUI side
                 idx = int(map_range(self.getXValue(), constants.x_min, constants.x_max, 0, len(self.scale)-1))
                 ret.append( self.scale[idx] )
             elif axis == "y":
                 ret.append(int(map_range(self.getYValue(), constants.y_min, constants.y_max, 0, 127)))
             elif axis == "z":
-                ret.append(int(map_range(self.getZValue(), constants.z_min, constants.z_max, 127, 0)))
+                ret.append(int(map_range(self.getZValue(), constants.z_min, constants.z_max, 0, 127)))
             elif axis == "pitch":
-                ret.append(int(map_range(self.getPitchValue(), constants.pitch_min, constants.pitch_max, 0, 127)))#backwards because
-                                            #we  want away from body to be greater value
+                ret.append(int(map_range(self.getPitchValue(), constants.pitch_min, constants.pitch_max, 0, 127)))
             elif axis == "roll":
                 ret.append(int(map_range(self.getRollValue(), constants.roll_min, constants.roll_max, 127, 0)))  #backwards because
                                             #right hand is more intuitive to twist positive the opposite way we didn't ask for this life
@@ -118,14 +73,9 @@ class Baton:
             messages.append([constants.noteon, vals[0], velocity])
 
         #controllers 1-4
-        if vals[2] is not None:
-            messages.append([constants.controller, ctrlPort1, vals[2]])
-        if vals[3] is not None:
-            messages.append([constants.controller, ctrlPort2, vals[3]])
-        if vals[4] is not None:
-            messages.append([constants.controller, ctrlPort3, vals[4]])
-        if vals[5] is not None:
-            messages.append([constants.controller, ctrlPort4, vals[5]])
+        for i in range(2,5):
+            if vals[i] is not None:
+                messages.append([constants.controller, 1, vals[i]]) #TODO: implement variable controller parameter
 
         return messages
 
@@ -312,31 +262,32 @@ class Player:
                     # STOP PLAYING NOTES!!!
                     # print "Removed batons, %d remaining" % len(self.batons)
 
-class app():
+def main():
 
-    def __init__(self):
-        print "Hai"
+    leap = Controller()
 
-    def run(self):
-        leap = Controller()
+    player = Player(rtmidi.MidiOut(), 2, 50)
 
-        player = Player(rtmidi.MidiOut(), 2, 50)
+    playing_notes = []
+    possible_notes = [50,52,54,55,57,59,61,62]
+    possible_notes = map(lambda x: x+12,possible_notes)
 
-        playing_notes = []
-        possible_notes = [50,52,54,55,57,59,61,62]
-        possible_notes = map(lambda x: x+12,possible_notes)
+    while True:
+        frame = leap.frame()
 
-        while True:
-            frame = leap.frame()
+        hands = []
+        for hand in frame.hands:
+            if True or hand.palm_position.z < 0:
+                hands.append(hand)
+        player.update(hands)
 
-            hands = []
-            for hand in frame.hands:
-                if True or hand.palm_position.z < 0:
-                    hands.append(hand)
-            player.update(hands)
+        player.sync()
 
-            player.sync()
+def map_range(num, min1, max1, min2, max2, clamp=True):
+    percent = (num-min1)/(max1-min1)
+    if clamp:
+        percent = 0 if percent < 0 else percent
+        percent = 1 if percent > 1 else percent
+    return min2 + percent*(max2-min2)
 
-
-if __name__ ==  "__main__":
-    app().run()
+main()

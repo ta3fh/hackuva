@@ -1,18 +1,24 @@
 __author__ = 'csh7kd'
 
 global x_min, x_max, y_min, y_max, z_min, z_max, pitch_min, pitch_max, roll_min, roll_max, yaw_min, yaw_max
+
 x_min = -350
 x_max = 350
+
 y_min = 100
 y_max = 350
+
 z_min = -100
 z_max = 100
-pitch_min = -90
-pitch_max = 90
-roll_min = -90
-roll_max = 90
-yaw_min = -90
-yaw_max = 90
+
+pitch_min = -.8
+pitch_max = .8
+
+roll_min = -0.65
+roll_max = 0.55
+
+yaw_min = -0.3
+yaw_max = 0.3
 
 global velocity_default
 velocity_default = 100
