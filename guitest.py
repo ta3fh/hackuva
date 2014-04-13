@@ -4,6 +4,7 @@ import wx, wx.html
 import sys
 import rtmidi_python as rtmidi
 
+import leap_midi
 from leap_midi import *
 
 aboutText = """
@@ -132,10 +133,12 @@ class AppFrame(wx.Frame):
                 octave += 1
 
         root_box = wx.ComboBox(panel, wx.ID_ANY, choices=roots)
+        root_box.SetEditable(False)
         axis_box.Add(root_box,wx.GBPosition(1,len(columns)+2),flag=flagz)
 
         scale_choices = ["[None]"] + constants.scale_offsets.keys()
         scale_box = wx.ComboBox(panel, wx.ID_ANY, choices=scale_choices)
+        scale_box.SetEditable(False)
         axis_box.Add(scale_box,wx.GBPosition(1,len(columns)+1),flag=flagz)
 
         octave_choices = []
@@ -143,7 +146,33 @@ class AppFrame(wx.Frame):
             octave_choices.append(str(i))
 
         octave_box = wx.ComboBox(panel, wx.ID_ANY, choices=octave_choices)
+        octave_box.SetEditable(False)
         axis_box.Add(octave_box,wx.GBPosition(1,len(columns)+3),flag=flagz)
+
+        def OnScaleChange(x):
+            scale_name = self.box_scale.GetString(self.box_scale.GetCurrentSelection())
+            root_note = self.box_root.GetCurrentSelection()
+            octave_count = self.box_octave.GetCurrentSelection()+1
+            print "%s %s %s" % (scale_name,root_note,octave_count)
+            leap_midi.scale_notes = []
+            if scale_name not in constants.scale_offsets.keys(): # if "none"
+                return
+            offset = constants.scale_offsets[scale_name]
+            for i in range(0,octave_count):
+                leap_midi.scale_notes += map(lambda x: root_note + x + 12*i,offset)
+            leap_midi.scale_notes.append(root_note + 12*octave_count)
+
+        octave_box.SetSelection(0)
+        root_box.SetSelection(12*4) # middle c
+        scale_box.SetSelection(0)
+
+        octave_box.Bind(wx.EVT_COMBOBOX, OnScaleChange)
+        root_box.Bind(wx.EVT_COMBOBOX, OnScaleChange)
+        scale_box.Bind(wx.EVT_COMBOBOX, OnScaleChange)
+
+        self.box_octave = octave_box
+        self.box_root = root_box
+        self.box_scale = scale_box
 
         for i in range(0,len(options)):
             out = options[i]
@@ -274,6 +303,11 @@ class AppFrame(wx.Frame):
                 ctrl_num.Bind(wx.EVT_SPINCTRL, OnControllerChange)
                 self.control_dict[key].append(ctrl_num)
                 axis_box.Add(ctrl_num, wx.GBPosition(y,2), flag=flag)
+
+        title = self.GenDefaultLabel(panel,"Leap Music")
+        title.SetFont(wx.Font(28, wx.DEFAULT, wx.NORMAL, wx.NORMAL))
+        axis_box.Add(title, wx.GBPosition(2,5),flag=wx.ALIGN_CENTER,
+                     span=wx.GBSpan(5,3))
 
         box.Add(axis_box, flag=wx.ALL, border=20)
         box.Add(footer, border=20, flag=wx.ALL)

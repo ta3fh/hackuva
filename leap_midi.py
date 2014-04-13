@@ -125,8 +125,9 @@ class Baton:
         #note (and velocity)
         # TODO note and velocity scaling, etc
         if vals[0] is not None:
-            global range_note, scale_notes
+            global range_note
             note = None
+            scale_notes = globals()["scale_notes"]
             if scale_notes is None:
                 note = int(map_range(vals[0],axis_min,axis_max,range_note[0],range_note[1]))
             else:
