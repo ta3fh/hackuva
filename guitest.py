@@ -71,7 +71,7 @@ class AppFrame(wx.Frame):
 		# box.Add(m_close, 0, wx.ALL, 10)
 
 		header = wx.BoxSizer(wx.HORIZONTAL)
-		ports = []
+		ports = ["[None]"]
 		for port_name in rtmidi.MidiOut().ports:
 			ports.append(port_name)
 		midi_combo = wx.ComboBox(panel, wx.ID_ANY, choices=ports)
@@ -88,16 +88,49 @@ class AppFrame(wx.Frame):
 		header.Add(testing, flag=wx.ALIGN_CENTER_VERTICAL)
 		box.Add(header)
 
+		axes = ["X","Y","Z","Pitch","Roll","Yaw"]
+		options = ["[None]","Note","Velocity","Controller 1","Controller 2","Controller 3","Controller 4"]
+		columns = ["Axis","MIDI","MIDI Min","MIDI Max"]
+
+		axis_box = wx.GridBagSizer(vgap=0,hgap=10)
+
+		for j in range(0,len(columns)):
+			col = columns[j]
+			title = self.GenDefaultLabel(panel,col)
+			axis_box.Add(title, wx.GBPosition(0,j),flag=wx.ALIGN_CENTER | wx.ALIGN_CENTER_VERTICAL)
+
+		for i in range(0,len(axes)):
+			axis = axes[i]
+			y = i+1
+			label = self.GenDefaultLabel(panel,axis)
+			dropdown = wx.ComboBox(panel, wx.ID_ANY, choices=options)
+			dropdown.SetEditable(False)
+			spin_style = wx.SP_ARROW_KEYS
+			min_num = wx.SpinCtrl(panel, wx.ID_ANY, min=0,max=127,
+				initial=0, value="0", style=spin_style)
+			max_num = wx.SpinCtrl(panel, wx.ID_ANY, min=0,max=127,
+				initial=127, value="127", style=spin_style)
+			flag = wx.ALIGN_CENTER | wx.ALIGN_CENTER_VERTICAL
+			axis_box.Add(label, wx.GBPosition(y,0),flag=flag)
+			axis_box.Add(dropdown, wx.GBPosition(y,1),flag=flag)
+			axis_box.Add(min_num, wx.GBPosition(y,2),flag=flag)
+			axis_box.Add(max_num, wx.GBPosition(y,3),flag=flag)
+		box.Add(axis_box)
+
 		panel.SetSizer(box)
 		panel.Layout()
 
+	def GenDefaultLabel(self,window,text):
+		label_text = wx.StaticText(window, wx.ID_ANY, text)
+		label_text.SetFont(wx.Font(12, wx.DEFAULT, wx.NORMAL, wx.BOLD))
+		return label_text
+
 	def WithHorizontalLabel(self,window,thing,label):
 		box = wx.BoxSizer(wx.HORIZONTAL)
-		label_text = wx.StaticText(window, wx.ID_ANY, label)
-		label_text.SetFont(wx.Font(12, wx.DEFAULT, wx.NORMAL, wx.BOLD))
+		label_text = self.GenDefaultLabel(window,label)
 		box.Add(label_text, proportion=0,
 			flag=wx.RIGHT | wx.ALIGN_CENTER_VERTICAL,
-			border=10)
+			border=0)
 		box.Add(thing, proportion=0,
 			flag=wx.ALIGN_CENTER_VERTICAL,
 			border=0)
@@ -122,5 +155,6 @@ class AppFrame(wx.Frame):
 
 app = wx.App(redirect=False)   # Error messages go to popup window
 top = AppFrame("Leap Music")
+top.SetDimensions(44,44,1100,600)
 top.Show()
 app.MainLoop()
